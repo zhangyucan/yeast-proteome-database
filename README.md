@@ -1,7 +1,6 @@
 # 酵母绝对定量蛋白质组学统一数据库
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://yeast-proteome-database.streamlit.app)
-[![GitHub Deploy](https://github.com/your-username/yeast-proteome-database/actions/workflows/deploy.yml/badge.svg)](https://github.com/your-username/yeast-proteome-database/actions/workflows/deploy.yml)
 
 ## 项目简介
 
@@ -18,67 +17,8 @@
 ## 在线访问
 
 - **云端演示版**: [https://yeast-proteome-database.streamlit.app](https://yeast-proteome-database.streamlit.app)
-- **GitHub仓库**: [https://github.com/your-username/yeast-proteome-database](https://github.com/your-username/yeast-proteome-database)
+- **GitHub仓库**: [https://github.com/zhangyucan/yeast-proteome-database](https://github.com/zhangyucan/yeast-proteome-database)
 - **完整版本**: 请联系研究团队获取完整数据集
-
-## 快速部署到GitHub和Streamlit Cloud
-
-### 1. 部署到GitHub
-
-```bash
-# 1. 在GitHub上创建新仓库 yeast-proteome-database
-# 2. 克隆到本地并添加文件
-git clone https://github.com/your-username/yeast-proteome-database.git
-cd yeast-proteome-database
-
-# 3. 复制项目文件到仓库目录
-# 4. 提交并推送
-git add .
-git commit -m "Initial commit: 酵母蛋白质组学数据库"
-git push origin main
-```
-
-### 2. 部署到Streamlit Cloud
-
-1. 访问 [https://streamlit.io/cloud](https://streamlit.io/cloud)
-2. 使用GitHub账号登录
-3. 点击 "New app"
-4. 选择你的GitHub仓库 `yeast-proteome-database`
-5. 设置入口文件为 `app_cloud.py`
-6. 点击 "Deploy"
-
-### 3. 自定义域名（可选）
-
-在Streamlit Cloud应用设置中，你可以自定义域名为更友好的名称。
-
-## 本地运行
-
-### 环境要求
-
-- Python 3.8+
-- 依赖包见 `requirements.txt`
-
-### 安装步骤
-
-1. 克隆仓库:
-```bash
-git clone https://github.com/your-username/yeast-proteome-database.git
-cd yeast-proteome-database
-```
-
-2. 安装依赖:
-```bash
-pip install -r requirements.txt
-```
-
-3. 运行应用:
-```bash
-# 云端演示版本
-streamlit run app_cloud.py
-
-# 完整版本（需要数据文件）
-streamlit run new_search.py
-```
 
 ## 数据说明
 
@@ -106,18 +46,11 @@ streamlit run new_search.py
 2. **细胞器质量比例**: 比较不同条件下细胞器间的蛋白质分布
 3. **蛋白质质量分布**: 展示蛋白质质量分数的整体分布
 
-## 技术栈
-
-- **前端**: Streamlit
-- **数据处理**: Pandas, NumPy
-- **可视化**: Matplotlib, Seaborn, Plotly
-- **数据库**: SQLite
-
 ## 联系我们
 
 如有任何问题或建议，请联系：
 
-**陆宏钟教授**
+**鲁洪中教授**
 - 邮箱: hongzhonglu@sjtu.edu.cn
 - 主页: https://life.sjtu.edu.cn/teacher/En/luhongzhong
 
