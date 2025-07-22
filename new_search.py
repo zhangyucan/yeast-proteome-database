@@ -19,7 +19,7 @@ file_content = None
 
 def prepare_file():
     global file_content
-    file_path = "/home/yucan/lu_web/protein_database.rar"
+    file_path = "/home/yucan/yeast-proteome-database/protein_database.rar"
     with open(file_path, 'rb') as f:
         file_content = f.read()
 
@@ -40,7 +40,7 @@ def get_rar_download_link(rar_path):
 # 数据库连接
 @st.cache_resource
 def get_db_connection():
-    return sqlite3.connect("/home/yucan/lu_web/lu_web_v3.db")
+    return sqlite3.connect("/home/yucan/yeast-proteome-database/lu_web_v3.db")
 
 # 读取数据
 @st.cache_data
