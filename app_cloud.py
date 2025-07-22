@@ -73,9 +73,37 @@ def get_db_connection():
     # 使用相对路径，适用于云部署
     db_path = "lu_web_v3.db"
     if os.path.exists(db_path):
-        return sqlite3.connect(db_path)
+        # 添加check_same_thread=False参数来解决SQLite线程安全问题
+        return sqlite3.connect(db_path, check_same_thread=False)
     else:
         st.error("Database file not found!")
+        return None
+
+# 创建新的数据库连接函数，用于临时查询
+def create_db_connection():
+    """创建新的数据库连接，避免线程安全问题"""
+    db_path = "lu_web_v3.db"
+    if os.path.exists(db_path):
+        return sqlite3.connect(db_path, check_same_thread=False)
+    else:
+        return None
+
+# 读取映射数据
+@st.cache_data
+def load_mapping_data():
+    """加载映射数据，带缓存"""
+    conn = create_db_connection()
+    if conn is None:
+        return None
+    
+    try:
+        mapping_df = pd.read_sql('SELECT * FROM physiology_collection', conn)
+        conn.close()
+        return mapping_df
+    except Exception as e:
+        if conn:
+            conn.close()
+        st.error(f"Error loading mapping data: {str(e)}")
         return None
 
 # 读取数据
@@ -167,19 +195,11 @@ if table_choice == "Main Page":
 
         st.subheader("Mapping of P1-275 Overview")
         # 从数据库加载生理学数据集合
-        try:
-            conn = get_db_connection()
-            if conn is not None:
-                try:
-                    mapping_df = pd.read_sql('SELECT * FROM physiology_collection', conn)
-                    st.dataframe(mapping_df)
-                except Exception as e:
-                    st.error(f"Error loading mapping data: {str(e)}")
-                    st.info("Mapping data could not be loaded from the database.")
-            else:
-                st.info("Database connection is not available.")
-        except Exception as e:
-            st.error(f"Error accessing database: {str(e)}")
+        mapping_df = load_mapping_data()
+        if mapping_df is not None:
+            st.dataframe(mapping_df)
+        else:
+            st.info("Mapping data could not be loaded from the database.")
 
 if table_choice == "Compute":
     module = st.sidebar.selectbox(
