@@ -19,80 +19,66 @@ executor = ThreadPoolExecutor(max_workers=2)
 file_content = None
 
 def prepare_file():
-    """为云部署准备文件下载功能"""
     global file_content
-    # 云部署时，可以使用示例数据或提供其他下载方式
-    file_content = b"Demo file content - replace with actual data"
+    # 使用相对路径，适用于云部署
+    file_path = "protein_database.rar"
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as f:
+            file_content = f.read()
+    else:
+        file_content = None
 
 # 在后台异步准备文件
 executor.submit(prepare_file)
 
 @st.cache_data
 @lru_cache(maxsize=5)
-def get_rar_download_link():
-    """提供数据下载链接"""
+def get_rar_download_link(rar_path):
     try:
-        # 云部署时提供其他下载方式
-        href = '<p>数据下载功能在云版本中暂不可用。请联系 <a href="mailto:hongzhonglu@sjtu.edu.cn">hongzhonglu@sjtu.edu.cn</a> 获取完整数据集。</p>'
-        return href
+        if file_content is not None:
+            b64 = base64.b64encode(file_content).decode()
+            filename = "protein_database.rar"
+            href = f'<a href="data:application/x-rar-compressed;base64,{b64}" download="{filename}">Download Protein Database (RAR)</a>'
+            return href
+        else:
+            return '<p>数据下载功能暂时不可用。请联系 <a href="mailto:hongzhonglu@sjtu.edu.cn">hongzhonglu@sjtu.edu.cn</a> 获取完整数据集。</p>'
     except Exception as e:
         return f"Error: {str(e)}"
 
-# 数据库连接 - 云部署版本
+# 数据库连接
 @st.cache_resource
 def get_db_connection():
-    """创建示例数据库连接"""
-    # 为演示创建内存数据库
-    conn = sqlite3.connect(":memory:")
-    return conn
-
-@st.cache_data
-def create_sample_data():
-    """创建示例数据"""
-    # 创建示例的蛋白质质量分数数据
-    genes = [f"YAL{str(i).zfill(3)}C" for i in range(1, 101)]
-    conditions = [f"P{i}" for i in range(1, 11)]  # 简化为10个条件
-    
-    # 生成随机数据
-    np.random.seed(42)
-    data = {
-        'gene': genes
-    }
-    for condition in conditions:
-        data[condition] = np.random.exponential(0.001, len(genes))
-    
-    mass_fraction_df = pd.DataFrame(data)
-    
-    # 创建示例compartment数据
-    compartments = ['cytoplasm', 'nucleus', 'mitochondria', 'ER', 'vacuole']
-    compartment_data = {
-        'gene': np.random.choice(genes, 200),
-        'compartment': np.random.choice(compartments, 200)
-    }
-    compartment_df = pd.DataFrame(compartment_data)
-    
-    # 创建示例promass数据
-    promass_data = {
-        'compartment': compartments * 10,
-    }
-    for condition in conditions:
-        promass_data[condition] = np.random.exponential(1, len(compartments) * 10)
-    
-    promass_df = pd.DataFrame(promass_data)
-    
-    # 创建mapping数据
-    mapping_data = {
-        'Condition_ID': conditions,
-        'Description': [f"Experimental condition {i}" for i in range(1, 11)],
-        'Growth_Media': np.random.choice(['YPD', 'SD', 'SC'], 10),
-        'Temperature': np.random.choice([25, 30, 37], 10)
-    }
-    mapping_df = pd.DataFrame(mapping_data)
-    
-    return mass_fraction_df, compartment_df, promass_df, mapping_df
+    # 使用相对路径，适用于云部署
+    db_path = "lu_web_v3.db"
+    if os.path.exists(db_path):
+        return sqlite3.connect(db_path)
+    else:
+        st.error("Database file not found!")
+        return None
 
 # 读取数据
-mass_fraction_df, compartment_df, promass_df, mapping_df = create_sample_data()
+@st.cache_data
+def load_data():
+    conn = get_db_connection()
+    if conn is None:
+        return None, None, None
+    
+    try:
+        mass_fraction_df = pd.read_sql('SELECT * FROM mass_fraction_combine', conn)
+        compartment_df = pd.read_sql('SELECT * FROM compartment_annotation_refine', conn)
+        promass_df = pd.read_sql('SELECT * FROM ProMassRatio_across_compartment_combine', conn)
+        return mass_fraction_df, compartment_df, promass_df
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return None, None, None
+
+# 加载数据
+data_result = load_data()
+if data_result[0] is None:
+    st.error("Failed to load data from database!")
+    st.stop()
+
+mass_fraction_df, compartment_df, promass_df = data_result
 
 # 顶部导航栏
 st.markdown("""
@@ -103,22 +89,15 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 云部署提示
-st.markdown("""
-<div style='background-color: #fff3cd; padding: 1rem; border-radius: 3px; margin-bottom: 1rem; border-left: 4px solid #ffc107;'>
-    <strong>🌟 演示版本说明:</strong> 这是云部署的演示版本，使用模拟数据展示功能。完整数据集请联系研究团队获取。
-</div>
-""", unsafe_allow_html=True)
-
 table_choice = st.sidebar.radio(
-    "Please select the required function", 
-    ["Main Page", "Compute", "Download", "About us"]
-)
+        "Please select the required function", 
+        ["Main Page", "Compute", "Download", "About us"]
+    )
 
 if table_choice == "Download":
     st.markdown("## Download Data")
     st.markdown("Download the database in RAR format.")
-    st.markdown(get_rar_download_link(), unsafe_allow_html=True)
+    st.markdown(get_rar_download_link("protein_database.rar"), unsafe_allow_html=True)
 
 if table_choice == "About us":
     st.markdown("## About Us")
@@ -161,11 +140,24 @@ if table_choice == "Main Page":
             st.warning(f"No proteins found matching '{search_query}'")
     else:
         # 当没有搜索时显示概览数据
-        st.subheader("Mass Fraction Data Overview (Demo Data)")
+        st.subheader("Mass Fraction Data Overview")
         st.dataframe(mass_fraction_df.head(100))
 
-        st.subheader("Mapping of P1-10 Overview (Demo Data)")
-        st.dataframe(mapping_df)
+        st.subheader("Mapping of P1-275 Overview")
+        # 尝试加载CSV文件，如果不存在则显示替代信息
+        try:
+            # 首先尝试从数据库加载
+            conn = get_db_connection()
+            if conn is not None:
+                try:
+                    mapping_df = pd.read_sql('SELECT * FROM physiology_collection_v2', conn)
+                    st.dataframe(mapping_df)
+                except:
+                    st.info("Mapping data is not available in this version.")
+            else:
+                st.info("Mapping data is not available in this version.")
+        except Exception as e:
+            st.info("Mapping data is not available in this version.")
 
 if table_choice == "Compute":
     module = st.sidebar.selectbox(
@@ -173,59 +165,44 @@ if table_choice == "Compute":
         ["Compartment Analysis", "Compartment Mass Ratio", "Protein Mass Distribution"]
     )
     
-    if module == "Compartment Analysis":
+    if module == "Compartment Analysis": # 模块三
         st.subheader("Compartment Analysis")
         compartment = st.selectbox("Select Compartment", compartment_df['compartment'].unique())
-        cond = st.selectbox("Select Condition", [f'P{i}' for i in range(1, 11)], key="cond1")
+        cond = st.selectbox("Select Condition", [f'P{i}' for i in range(1, 276)], key="cond1")
         
         if st.button("Generate Analysis"):
-            try:
-                plot_cumulative_mass_fraction(compartment, cond, mass_fraction_df, compartment_df)
-            except Exception as e:
-                st.error(f"分析功能在演示版本中可能不完全可用: {str(e)}")
+            plot_cumulative_mass_fraction(compartment, cond, mass_fraction_df, compartment_df)
     
-    elif module == "Compartment Mass Ratio":
+    elif module == "Compartment Mass Ratio": # 模块四
         st.subheader("Compartment Mass Ratio Analysis")
         analysis_type = st.radio("Select Analysis Type", ["Single Condition", "Two Conditions"])
         
         if analysis_type == "Single Condition":
-            column = st.selectbox("Select Condition", [f'P{i}' for i in range(1, 11)])
+            column = st.selectbox("Select Condition", [f'P{i}' for i in range(1, 276)])
             if st.button("Generate Plot"):
-                try:
-                    plot_distribution(promass_df, column)
-                except Exception as e:
-                    st.error(f"绘图功能在演示版本中可能不完全可用: {str(e)}")
+                plot_distribution(promass_df, column)
         else:
             col1, col2 = st.columns(2)
             with col1:
-                column1 = st.selectbox("Select First Condition", [f'P{i}' for i in range(1, 11)])
+                column1 = st.selectbox("Select First Condition", [f'P{i}' for i in range(1, 276)])
             with col2:
-                column2 = st.selectbox("Select Second Condition", [f'P{i}' for i in range(1, 11)])
+                column2 = st.selectbox("Select Second Condition", [f'P{i}' for i in range(1, 276)])
             if st.button("Generate Plot"):
-                try:
-                    plot_scatter(promass_df, column1, column2)
-                except Exception as e:
-                    st.error(f"绘图功能在演示版本中可能不完全可用: {str(e)}")
+                plot_scatter(promass_df, column1, column2)  
     
     elif module == "Protein Mass Distribution":
         st.subheader("Protein Mass Distribution Analysis")
         analysis_type = st.radio("Select Analysis Type", ["Single Condition", "Two Conditions"])
         
         if analysis_type == "Single Condition":
-            column = st.selectbox("Select Condition", [f'P{i}' for i in range(1, 11)])
+            column = st.selectbox("Select Condition", [f'P{i}' for i in range(1, 276)])
             if st.button("Generate Plot"):
-                try:
-                    plot_distribution_5(mass_fraction_df, column)
-                except Exception as e:
-                    st.error(f"绘图功能在演示版本中可能不完全可用: {str(e)}")
+                plot_distribution_5(mass_fraction_df, column)
         else:
             col1, col2 = st.columns(2)
             with col1:
-                column1 = st.selectbox("Select First Condition", [f'P{i}' for i in range(1, 11)])
+                column1 = st.selectbox("Select First Condition", [f'P{i}' for i in range(1, 276)])
             with col2:
-                column2 = st.selectbox("Select Second Condition", [f'P{i}' for i in range(1, 11)])
+                column2 = st.selectbox("Select Second Condition", [f'P{i}' for i in range(1, 276)])
             if st.button("Generate Plot"):
-                try:
-                    plot_log_scatter_5(mass_fraction_df, column1, column2)
-                except Exception as e:
-                    st.error(f"绘图功能在演示版本中可能不完全可用: {str(e)}")
+                plot_log_scatter_5(mass_fraction_df, column1, column2)  
