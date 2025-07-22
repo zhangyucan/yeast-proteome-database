@@ -22,10 +22,16 @@ def prepare_file():
     global file_content
     # 使用相对路径，适用于云部署
     file_path = "protein_database.rar"
-    if os.path.exists(file_path):
-        with open(file_path, 'rb') as f:
-            file_content = f.read()
-    else:
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'rb') as f:
+                file_content = f.read()
+            print(f"Successfully loaded {len(file_content)} bytes from {file_path}")
+        else:
+            print(f"File {file_path} not found")
+            file_content = None
+    except Exception as e:
+        print(f"Error loading file {file_path}: {str(e)}")
         file_content = None
 
 # 在后台异步准备文件
@@ -35,15 +41,31 @@ executor.submit(prepare_file)
 @lru_cache(maxsize=5)
 def get_rar_download_link(rar_path):
     try:
+        # 先检查文件是否存在
+        if not os.path.exists(rar_path):
+            return '<p style="color: red;">文件不存在。请联系 <a href="mailto:hongzhonglu@sjtu.edu.cn">hongzhonglu@sjtu.edu.cn</a> 获取完整数据集。</p>'
+        
+        # 检查file_content是否已加载
         if file_content is not None:
+            file_size_mb = len(file_content) / (1024 * 1024)
             b64 = base64.b64encode(file_content).decode()
             filename = "protein_database.rar"
-            href = f'<a href="data:application/x-rar-compressed;base64,{b64}" download="{filename}">Download Protein Database (RAR)</a>'
+            href = f'<a href="data:application/x-rar-compressed;base64,{b64}" download="{filename}">📥 Download Protein Database (RAR) - {file_size_mb:.1f} MB</a>'
             return href
         else:
-            return '<p>数据下载功能暂时不可用。请联系 <a href="mailto:hongzhonglu@sjtu.edu.cn">hongzhonglu@sjtu.edu.cn</a> 获取完整数据集。</p>'
+            # 如果file_content为空，尝试直接读取文件
+            try:
+                with open(rar_path, 'rb') as f:
+                    content = f.read()
+                file_size_mb = len(content) / (1024 * 1024)
+                b64 = base64.b64encode(content).decode()
+                filename = "protein_database.rar"
+                href = f'<a href="data:application/x-rar-compressed;base64,{b64}" download="{filename}">📥 Download Protein Database (RAR) - {file_size_mb:.1f} MB</a>'
+                return href
+            except Exception as read_error:
+                return f'<p style="color: orange;">读取文件时出错: {str(read_error)}。请联系 <a href="mailto:hongzhonglu@sjtu.edu.cn">hongzhonglu@sjtu.edu.cn</a> 获取完整数据集。</p>'
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f'<p style="color: red;">下载功能出错: {str(e)}。请联系 <a href="mailto:hongzhonglu@sjtu.edu.cn">hongzhonglu@sjtu.edu.cn</a> 获取完整数据集。</p>'
 
 # 数据库连接
 @st.cache_resource
@@ -144,20 +166,20 @@ if table_choice == "Main Page":
         st.dataframe(mass_fraction_df.head(100))
 
         st.subheader("Mapping of P1-275 Overview")
-        # 尝试加载CSV文件，如果不存在则显示替代信息
+        # 从数据库加载生理学数据集合
         try:
-            # 首先尝试从数据库加载
             conn = get_db_connection()
             if conn is not None:
                 try:
-                    mapping_df = pd.read_sql('SELECT * FROM physiology_collection_v2', conn)
+                    mapping_df = pd.read_sql('SELECT * FROM physiology_collection', conn)
                     st.dataframe(mapping_df)
-                except:
-                    st.info("Mapping data is not available in this version.")
+                except Exception as e:
+                    st.error(f"Error loading mapping data: {str(e)}")
+                    st.info("Mapping data could not be loaded from the database.")
             else:
-                st.info("Mapping data is not available in this version.")
+                st.info("Database connection is not available.")
         except Exception as e:
-            st.info("Mapping data is not available in this version.")
+            st.error(f"Error accessing database: {str(e)}")
 
 if table_choice == "Compute":
     module = st.sidebar.selectbox(
